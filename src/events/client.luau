@@ -106,6 +106,18 @@ if not RunService:IsRunning() then
 	local noop = function() end
 	return table.freeze({
 		SendEvents = noop,
+		TerminateDialogue = table.freeze({
+			Fire = noop
+		}),
+		GetClientDialoguesData = table.freeze({
+			Fire = noop
+		}),
+		ReturnClientDialoguesData = table.freeze({
+			SetCallback = noop
+		}),
+		ReturnClientDialoguesDataFinished = table.freeze({
+			SetCallback = noop
+		}),
 		DialogueData = table.freeze({
 			SetCallback = noop
 		}),
@@ -141,9 +153,11 @@ end
 
 RunService.Heartbeat:Connect(SendEvents)
 
-local events = table.create(2)
-local event_queue: { [number]: { any } } = table.create(2)
-event_queue[1] = {}
+local events = table.create(6)
+local event_queue: { [number]: { any } } = table.create(6)
+event_queue[3] = {}
+event_queue[4] = 0
+event_queue[5] = {}
 reliable.OnClientEvent:Connect(function(buff, inst)
 	incoming_buff = buff
 	incoming_inst = inst
@@ -152,124 +166,157 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 	local len = buffer.len(buff)
 	while incoming_read < len do
 		local id = buffer.readu8(buff, read(1))
-		if id == 1 then
+		if id == 3 then
+			local value
+			value = {}
+			for _ = 1, buffer.readu16(incoming_buff, read(2)) do
+				local key_1
+				local val_1
+				local len_1 = buffer.readu16(incoming_buff, read(2))
+				key_1 = buffer.readstring(incoming_buff, read(len_1), len_1)
+				val_1 = {}
+				val_1.ServerActions = {}
+				for _ = 1, buffer.readu16(incoming_buff, read(2)) do
+					local key_2
+					key_2 = buffer.readu16(incoming_buff, read(2))
+					val_1.ServerActions[key_2] = true
+				end
+				val_1.ClientActions = {}
+				for _ = 1, buffer.readu16(incoming_buff, read(2)) do
+					local key_3
+					local val_2
+					key_3 = buffer.readu16(incoming_buff, read(2))
+					val_2 = {}
+					local len_2 = buffer.readu16(incoming_buff, read(2))
+					for i_1 = 1, len_2 do
+						local val_3
+						val_3 = {}
+						if buffer.readu8(incoming_buff, read(1)) == 1 then
+							val_3.before = {}
+							local len_3 = buffer.readu16(incoming_buff, read(2))
+							for i_2 = 1, len_3 do
+								local val_4
+								val_4 = {}
+								val_4.type = buffer.readu8(incoming_buff, read(1))
+								val_4.data = {}
+								local enum_value_1 = buffer.readu8(incoming_buff, read(1))
+								if enum_value_1 == 0 then
+									val_4.data.ActionData = "MoveCamera"
+									local pos_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+									local axisangle_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+									local angle_1 = axisangle_1.Magnitude
+									if angle_1 ~= 0 then
+										val_4.data.target = CFrame.fromAxisAngle(axisangle_1, angle_1) + pos_1
+									else
+										val_4.data.target = CFrame.new(pos_1)
+									end
+									val_4.data.speed = buffer.readf32(incoming_buff, read(4))
+								else
+									error("Invalid variant")
+								end
+								val_3.before[i_2] = val_4
+							end
+						else
+							val_3.before = nil
+						end
+						if buffer.readu8(incoming_buff, read(1)) == 1 then
+							val_3.after = {}
+							local len_4 = buffer.readu16(incoming_buff, read(2))
+							for i_3 = 1, len_4 do
+								local val_5
+								val_5 = {}
+								val_5.type = buffer.readu8(incoming_buff, read(1))
+								val_5.data = {}
+								local enum_value_2 = buffer.readu8(incoming_buff, read(1))
+								if enum_value_2 == 0 then
+									val_5.data.ActionData = "MoveCamera"
+									local pos_2 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+									local axisangle_2 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
+									local angle_2 = axisangle_2.Magnitude
+									if angle_2 ~= 0 then
+										val_5.data.target = CFrame.fromAxisAngle(axisangle_2, angle_2) + pos_2
+									else
+										val_5.data.target = CFrame.new(pos_2)
+									end
+									val_5.data.speed = buffer.readf32(incoming_buff, read(4))
+								else
+									error("Invalid variant")
+								end
+								val_3.after[i_3] = val_5
+							end
+						else
+							val_3.after = nil
+						end
+						val_2[i_1] = val_3
+					end
+					val_1.ClientActions[key_3] = val_2
+				end
+				value[key_1] = val_1
+			end
+			if events[3] then
+				task.spawn(events[3], value)
+			else
+				table.insert(event_queue[3], value)
+				if #event_queue[3] > 64 then
+					warn(`[ZAP] {#event_queue[3]} events in queue for ReturnClientDialoguesData. Did you forget to attach a listener?`)
+				end
+			end
+		elseif id == 4 then
+			local value
+			if events[4] then
+				task.spawn(events[4], value)
+			else
+				event_queue[4] += 1
+				if event_queue[4] > 16 then
+					warn(`[ZAP] {event_queue[4]} events in queue for ReturnClientDialoguesDataFinished. Did you forget to attach a listener?`)
+				end
+			end
+		elseif id == 5 then
 			local value
 			value = {}
 			value.success = buffer.readu8(incoming_buff, read(1)) == 1
 			local len_1 = buffer.readu16(incoming_buff, read(2))
 			value.dialogueId = buffer.readstring(incoming_buff, read(len_1), len_1)
-			value.data = {}
-			value.data.Interactions = {}
-			for _ = 1, buffer.readu16(incoming_buff, read(2)) do
-				local key_1
-				local val_1
-				key_1 = buffer.readu16(incoming_buff, read(2))
-				val_1 = {}
-				local len_2 = buffer.readu16(incoming_buff, read(2))
-				val_1.Content = buffer.readstring(incoming_buff, read(len_2), len_2)
-				local len_3 = buffer.readu16(incoming_buff, read(2))
-				val_1.Title = buffer.readstring(incoming_buff, read(len_3), len_3)
-				val_1.Speed = buffer.readf32(incoming_buff, read(4))
-				val_1.Responses = {}
-				local len_4 = buffer.readu16(incoming_buff, read(2))
-				for i_1 = 1, len_4 do
-					local val_2
-					val_2 = {}
-					val_2.Next = buffer.readu8(incoming_buff, read(1))
-					local len_5 = buffer.readu16(incoming_buff, read(2))
-					val_2.Content = buffer.readstring(incoming_buff, read(len_5), len_5)
-					val_2.Speed = buffer.readu8(incoming_buff, read(1))
-					if buffer.readu8(incoming_buff, read(1)) == 1 then
-						val_2.TextColor = Color3.fromRGB(buffer.readu8(incoming_buff, read(1)), buffer.readu8(incoming_buff, read(1)), buffer.readu8(incoming_buff, read(1)))
-					else
-						val_2.TextColor = nil
-					end
-					val_1.Responses[i_1] = val_2
-				end
-				value.data.Interactions[key_1] = val_1
-			end
-			value.data.ServerActions = {}
-			for _ = 1, buffer.readu16(incoming_buff, read(2)) do
-				local key_2
-				key_2 = buffer.readu16(incoming_buff, read(2))
-				value.data.ServerActions[key_2] = true
-			end
-			value.data.ClientActions = {}
-			for _ = 1, buffer.readu16(incoming_buff, read(2)) do
-				local key_3
-				local val_3
-				key_3 = buffer.readu16(incoming_buff, read(2))
-				val_3 = {}
-				local len_6 = buffer.readu16(incoming_buff, read(2))
-				for i_2 = 1, len_6 do
-					local val_4
-					val_4 = {}
-					if buffer.readu8(incoming_buff, read(1)) == 1 then
-						val_4.before = {}
-						local len_7 = buffer.readu16(incoming_buff, read(2))
-						for i_3 = 1, len_7 do
-							local val_5
-							val_5 = {}
-							val_5.type = buffer.readu8(incoming_buff, read(1))
-							val_5.data = {}
-							local enum_value_1 = buffer.readu8(incoming_buff, read(1))
-							if enum_value_1 == 0 then
-								val_5.data.ActionData = "MoveCamera"
-								local pos_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-								local axisangle_1 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-								local angle_1 = axisangle_1.Magnitude
-								if angle_1 ~= 0 then
-									val_5.data.target = CFrame.fromAxisAngle(axisangle_1, angle_1) + pos_1
-								else
-									val_5.data.target = CFrame.new(pos_1)
-								end
-								val_5.data.speed = buffer.readf32(incoming_buff, read(4))
-							else
-								error("Invalid variant")
-							end
-							val_4.before[i_3] = val_5
+			if buffer.readu8(incoming_buff, read(1)) == 1 then
+				value.data = {}
+				value.data.Interactions = {}
+				for _ = 1, buffer.readu16(incoming_buff, read(2)) do
+					local key_1
+					local val_1
+					key_1 = buffer.readu16(incoming_buff, read(2))
+					val_1 = {}
+					local len_2 = buffer.readu16(incoming_buff, read(2))
+					val_1.Content = buffer.readstring(incoming_buff, read(len_2), len_2)
+					local len_3 = buffer.readu16(incoming_buff, read(2))
+					val_1.Title = buffer.readstring(incoming_buff, read(len_3), len_3)
+					val_1.Speed = buffer.readf32(incoming_buff, read(4))
+					val_1.Responses = {}
+					local len_4 = buffer.readu16(incoming_buff, read(2))
+					for i_1 = 1, len_4 do
+						local val_2
+						val_2 = {}
+						val_2.Next = buffer.readu8(incoming_buff, read(1))
+						local len_5 = buffer.readu16(incoming_buff, read(2))
+						val_2.Content = buffer.readstring(incoming_buff, read(len_5), len_5)
+						val_2.Speed = buffer.readu8(incoming_buff, read(1))
+						if buffer.readu8(incoming_buff, read(1)) == 1 then
+							val_2.TextColor = Color3.fromRGB(buffer.readu8(incoming_buff, read(1)), buffer.readu8(incoming_buff, read(1)), buffer.readu8(incoming_buff, read(1)))
+						else
+							val_2.TextColor = nil
 						end
-					else
-						val_4.before = nil
+						val_1.Responses[i_1] = val_2
 					end
-					if buffer.readu8(incoming_buff, read(1)) == 1 then
-						val_4.after = {}
-						local len_8 = buffer.readu16(incoming_buff, read(2))
-						for i_4 = 1, len_8 do
-							local val_6
-							val_6 = {}
-							val_6.type = buffer.readu8(incoming_buff, read(1))
-							val_6.data = {}
-							local enum_value_2 = buffer.readu8(incoming_buff, read(1))
-							if enum_value_2 == 0 then
-								val_6.data.ActionData = "MoveCamera"
-								local pos_2 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-								local axisangle_2 = Vector3.new(buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)), buffer.readf32(incoming_buff, read(4)))
-								local angle_2 = axisangle_2.Magnitude
-								if angle_2 ~= 0 then
-									val_6.data.target = CFrame.fromAxisAngle(axisangle_2, angle_2) + pos_2
-								else
-									val_6.data.target = CFrame.new(pos_2)
-								end
-								val_6.data.speed = buffer.readf32(incoming_buff, read(4))
-							else
-								error("Invalid variant")
-							end
-							val_4.after[i_4] = val_6
-						end
-					else
-						val_4.after = nil
-					end
-					val_3[i_2] = val_4
+					value.data.Interactions[key_1] = val_1
 				end
-				value.data.ClientActions[key_3] = val_3
-			end
-			if events[1] then
-				task.spawn(events[1], value)
 			else
-				table.insert(event_queue[1], value)
-				if #event_queue[1] > 64 then
-					warn(`[ZAP] {#event_queue[1]} events in queue for DialogueData. Did you forget to attach a listener?`)
+				value.data = nil
+			end
+			if events[5] then
+				task.spawn(events[5], value)
+			else
+				table.insert(event_queue[5], value)
+				if #event_queue[5] > 64 then
+					warn(`[ZAP] {#event_queue[5]} events in queue for DialogueData. Did you forget to attach a listener?`)
 				end
 			end
 		else
@@ -279,13 +326,25 @@ reliable.OnClientEvent:Connect(function(buff, inst)
 end)
 local returns = {
 	SendEvents = SendEvents,
+	TerminateDialogue = {
+		Fire = function()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+		end,
+	},
+	GetClientDialoguesData = {
+		Fire = function()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
+		end,
+	},
 	InitiateDialogue = {
 		Fire = function(Value: ({
 			id: (string),
 			nd: (boolean),
 		}))
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 2)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 6)
 			local len_1 = #Value.id
 			alloc(2)
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
@@ -295,11 +354,55 @@ local returns = {
 			buffer.writeu8(outgoing_buff, outgoing_apos, Value.nd and 1 or 0)
 		end,
 	},
+	ReturnClientDialoguesData = {
+		SetCallback = function(Callback: (({ [(string)]: ({
+			ServerActions: ({ [(number)]: true }),
+			ClientActions: ({ [(number)]: ({ ({
+				before: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+				after: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+			}) }) }),
+		}) })) -> ()): () -> ()
+			events[3] = Callback
+			for _, value in event_queue[3] do
+				task.spawn(Callback, value)
+			end
+			event_queue[3] = {}
+			return function()
+				events[3] = nil
+			end
+		end,
+	},
+	ReturnClientDialoguesDataFinished = {
+		SetCallback = function(Callback: () -> ()): () -> ()
+			events[4] = Callback
+			for _ = 1, event_queue[4] do
+				task.spawn(Callback)
+			end
+			event_queue[4] = 0
+			return function()
+				events[4] = nil
+			end
+		end,
+	},
 	DialogueData = {
 		SetCallback = function(Callback: (({
 			success: (boolean),
 			dialogueId: (string),
-			data: ({
+			data: (({
 				Interactions: ({ [(number)]: ({
 					Content: (string),
 					Title: (string),
@@ -311,34 +414,15 @@ local returns = {
 						TextColor: ((Color3)?),
 					}) }),
 				}) }),
-				ServerActions: ({ [(number)]: true }),
-				ClientActions: ({ [(number)]: ({ ({
-					before: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-					after: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-				}) }) }),
-			}),
+			})?),
 		})) -> ()): () -> ()
-			events[1] = Callback
-			for _, value in event_queue[1] do
+			events[5] = Callback
+			for _, value in event_queue[5] do
 				task.spawn(Callback, value)
 			end
-			event_queue[1] = {}
+			event_queue[5] = {}
 			return function()
-				events[1] = nil
+				events[5] = nil
 			end
 		end,
 	},

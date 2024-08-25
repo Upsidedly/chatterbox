@@ -106,6 +106,26 @@ if not RunService:IsRunning() then
 	local noop = function() end
 	return table.freeze({
 		SendEvents = noop,
+		TerminateDialogue = table.freeze({
+			SetCallback = noop
+		}),
+		GetClientDialoguesData = table.freeze({
+			SetCallback = noop
+		}),
+		ReturnClientDialoguesData = table.freeze({
+			Fire = noop,
+			FireAll = noop,
+			FireExcept = noop,
+			FireList = noop,
+			FireSet = noop
+		}),
+		ReturnClientDialoguesDataFinished = table.freeze({
+			Fire = noop,
+			FireAll = noop,
+			FireExcept = noop,
+			FireList = noop,
+			FireSet = noop
+		}),
 		DialogueData = table.freeze({
 			Fire = noop,
 			FireAll = noop,
@@ -177,7 +197,7 @@ end
 
 RunService.Heartbeat:Connect(SendEvents)
 
-local events = table.create(2)
+local events = table.create(6)
 reliable.OnServerEvent:Connect(function(player, buff, inst)
 	incoming_buff = buff
 	incoming_inst = inst
@@ -186,14 +206,24 @@ reliable.OnServerEvent:Connect(function(player, buff, inst)
 	local len = buffer.len(buff)
 	while incoming_read < len do
 		local id = buffer.readu8(buff, read(1))
-		if id == 2 then
+		if id == 1 then
+			local value
+			if events[1] then
+				task.spawn(events[1], player, value)
+			end
+		elseif id == 2 then
+			local value
+			if events[2] then
+				task.spawn(events[2], player, value)
+			end
+		elseif id == 6 then
 			local value
 			value = {}
 			local len_1 = buffer.readu16(incoming_buff, read(2))
 			value.id = buffer.readstring(incoming_buff, read(len_1), len_1)
 			value.nd = buffer.readu8(incoming_buff, read(1)) == 1
-			if events[2] then
-				task.spawn(events[2], player, value)
+			if events[6] then
+				task.spawn(events[6], player, value)
 			end
 		else
 			error("Unknown event id")
@@ -202,11 +232,770 @@ reliable.OnServerEvent:Connect(function(player, buff, inst)
 end)
 local returns = {
 	SendEvents = SendEvents,
+	ReturnClientDialoguesData = {
+		Fire = function(Player: Player, Value: ({ [(string)]: ({
+			ServerActions: ({ [(number)]: true }),
+			ClientActions: ({ [(number)]: ({ ({
+				before: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+				after: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+			}) }) }),
+		}) }))
+			load_player(Player)
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 3)
+			local len_pos_1 = alloc(2)
+			local len_1 = 0
+			for k_1, v_1 in Value do
+				len_1 = len_1 + 1
+				local len_2 = #k_1
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_2)
+				alloc(len_2)
+				buffer.writestring(outgoing_buff, outgoing_apos, k_1, len_2)
+				local len_pos_2 = alloc(2)
+				local len_3 = 0
+				for k_2, __1 in v_1.ServerActions do
+					len_3 = len_3 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
+				end
+				buffer.writeu16(outgoing_buff, len_pos_2, len_3)
+				local len_pos_3 = alloc(2)
+				local len_4 = 0
+				for k_3, v_2 in v_1.ClientActions do
+					len_4 = len_4 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
+					local len_5 = #v_2
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_2[i_1]
+						if val_1.before == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_6 = #val_1.before
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+							for i_2 = 1, len_6 do
+								local val_2 = val_1.before[i_2]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_2.type)
+								if val_2.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_1, angle_1 = val_2.data.target:ToAxisAngle()
+									axis_1 = axis_1 * angle_1
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+						if val_1.after == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_7 = #val_1.after
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
+							for i_3 = 1, len_7 do
+								local val_3 = val_1.after[i_3]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
+								if val_3.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_2, angle_2 = val_3.data.target:ToAxisAngle()
+									axis_2 = axis_2 * angle_2
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+					end
+				end
+				buffer.writeu16(outgoing_buff, len_pos_3, len_4)
+			end
+			buffer.writeu16(outgoing_buff, len_pos_1, len_1)
+			player_map[Player] = save()
+		end,
+		FireAll = function(Value: ({ [(string)]: ({
+			ServerActions: ({ [(number)]: true }),
+			ClientActions: ({ [(number)]: ({ ({
+				before: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+				after: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+			}) }) }),
+		}) }))
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 3)
+			local len_pos_1 = alloc(2)
+			local len_1 = 0
+			for k_1, v_1 in Value do
+				len_1 = len_1 + 1
+				local len_2 = #k_1
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_2)
+				alloc(len_2)
+				buffer.writestring(outgoing_buff, outgoing_apos, k_1, len_2)
+				local len_pos_2 = alloc(2)
+				local len_3 = 0
+				for k_2, __1 in v_1.ServerActions do
+					len_3 = len_3 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
+				end
+				buffer.writeu16(outgoing_buff, len_pos_2, len_3)
+				local len_pos_3 = alloc(2)
+				local len_4 = 0
+				for k_3, v_2 in v_1.ClientActions do
+					len_4 = len_4 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
+					local len_5 = #v_2
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_2[i_1]
+						if val_1.before == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_6 = #val_1.before
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+							for i_2 = 1, len_6 do
+								local val_2 = val_1.before[i_2]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_2.type)
+								if val_2.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_1, angle_1 = val_2.data.target:ToAxisAngle()
+									axis_1 = axis_1 * angle_1
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+						if val_1.after == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_7 = #val_1.after
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
+							for i_3 = 1, len_7 do
+								local val_3 = val_1.after[i_3]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
+								if val_3.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_2, angle_2 = val_3.data.target:ToAxisAngle()
+									axis_2 = axis_2 * angle_2
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+					end
+				end
+				buffer.writeu16(outgoing_buff, len_pos_3, len_4)
+			end
+			buffer.writeu16(outgoing_buff, len_pos_1, len_1)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireExcept = function(Except: Player, Value: ({ [(string)]: ({
+			ServerActions: ({ [(number)]: true }),
+			ClientActions: ({ [(number)]: ({ ({
+				before: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+				after: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+			}) }) }),
+		}) }))
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 3)
+			local len_pos_1 = alloc(2)
+			local len_1 = 0
+			for k_1, v_1 in Value do
+				len_1 = len_1 + 1
+				local len_2 = #k_1
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_2)
+				alloc(len_2)
+				buffer.writestring(outgoing_buff, outgoing_apos, k_1, len_2)
+				local len_pos_2 = alloc(2)
+				local len_3 = 0
+				for k_2, __1 in v_1.ServerActions do
+					len_3 = len_3 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
+				end
+				buffer.writeu16(outgoing_buff, len_pos_2, len_3)
+				local len_pos_3 = alloc(2)
+				local len_4 = 0
+				for k_3, v_2 in v_1.ClientActions do
+					len_4 = len_4 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
+					local len_5 = #v_2
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_2[i_1]
+						if val_1.before == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_6 = #val_1.before
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+							for i_2 = 1, len_6 do
+								local val_2 = val_1.before[i_2]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_2.type)
+								if val_2.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_1, angle_1 = val_2.data.target:ToAxisAngle()
+									axis_1 = axis_1 * angle_1
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+						if val_1.after == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_7 = #val_1.after
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
+							for i_3 = 1, len_7 do
+								local val_3 = val_1.after[i_3]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
+								if val_3.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_2, angle_2 = val_3.data.target:ToAxisAngle()
+									axis_2 = axis_2 * angle_2
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+					end
+				end
+				buffer.writeu16(outgoing_buff, len_pos_3, len_4)
+			end
+			buffer.writeu16(outgoing_buff, len_pos_1, len_1)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				if player ~= Except then
+					load_player(player)
+					alloc(used)
+					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+					player_map[player] = save()
+				end
+			end
+		end,
+		FireList = function(List: { Player }, Value: ({ [(string)]: ({
+			ServerActions: ({ [(number)]: true }),
+			ClientActions: ({ [(number)]: ({ ({
+				before: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+				after: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+			}) }) }),
+		}) }))
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 3)
+			local len_pos_1 = alloc(2)
+			local len_1 = 0
+			for k_1, v_1 in Value do
+				len_1 = len_1 + 1
+				local len_2 = #k_1
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_2)
+				alloc(len_2)
+				buffer.writestring(outgoing_buff, outgoing_apos, k_1, len_2)
+				local len_pos_2 = alloc(2)
+				local len_3 = 0
+				for k_2, __1 in v_1.ServerActions do
+					len_3 = len_3 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
+				end
+				buffer.writeu16(outgoing_buff, len_pos_2, len_3)
+				local len_pos_3 = alloc(2)
+				local len_4 = 0
+				for k_3, v_2 in v_1.ClientActions do
+					len_4 = len_4 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
+					local len_5 = #v_2
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_2[i_1]
+						if val_1.before == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_6 = #val_1.before
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+							for i_2 = 1, len_6 do
+								local val_2 = val_1.before[i_2]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_2.type)
+								if val_2.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_1, angle_1 = val_2.data.target:ToAxisAngle()
+									axis_1 = axis_1 * angle_1
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+						if val_1.after == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_7 = #val_1.after
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
+							for i_3 = 1, len_7 do
+								local val_3 = val_1.after[i_3]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
+								if val_3.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_2, angle_2 = val_3.data.target:ToAxisAngle()
+									axis_2 = axis_2 * angle_2
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+					end
+				end
+				buffer.writeu16(outgoing_buff, len_pos_3, len_4)
+			end
+			buffer.writeu16(outgoing_buff, len_pos_1, len_1)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in List do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireSet = function(Set: { [Player]: true }, Value: ({ [(string)]: ({
+			ServerActions: ({ [(number)]: true }),
+			ClientActions: ({ [(number)]: ({ ({
+				before: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+				after: (({ ({
+					type: (number),
+					data: ({
+						ActionData: "MoveCamera",
+						target: (CFrame),
+						speed: (number),
+					}),
+				}) })?),
+			}) }) }),
+		}) }))
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 3)
+			local len_pos_1 = alloc(2)
+			local len_1 = 0
+			for k_1, v_1 in Value do
+				len_1 = len_1 + 1
+				local len_2 = #k_1
+				alloc(2)
+				buffer.writeu16(outgoing_buff, outgoing_apos, len_2)
+				alloc(len_2)
+				buffer.writestring(outgoing_buff, outgoing_apos, k_1, len_2)
+				local len_pos_2 = alloc(2)
+				local len_3 = 0
+				for k_2, __1 in v_1.ServerActions do
+					len_3 = len_3 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
+				end
+				buffer.writeu16(outgoing_buff, len_pos_2, len_3)
+				local len_pos_3 = alloc(2)
+				local len_4 = 0
+				for k_3, v_2 in v_1.ClientActions do
+					len_4 = len_4 + 1
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
+					local len_5 = #v_2
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_2[i_1]
+						if val_1.before == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_6 = #val_1.before
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+							for i_2 = 1, len_6 do
+								local val_2 = val_1.before[i_2]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_2.type)
+								if val_2.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_1, angle_1 = val_2.data.target:ToAxisAngle()
+									axis_1 = axis_1 * angle_1
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_2.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+						if val_1.after == nil then
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							local len_7 = #val_1.after
+							alloc(2)
+							buffer.writeu16(outgoing_buff, outgoing_apos, len_7)
+							for i_3 = 1, len_7 do
+								local val_3 = val_1.after[i_3]
+								alloc(1)
+								buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
+								if val_3.data.ActionData == "MoveCamera" then
+									alloc(1)
+									buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+									local axis_2, angle_2 = val_3.data.target:ToAxisAngle()
+									axis_2 = axis_2 * angle_2
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
+									alloc(4)
+									buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
+								else
+									error("Invalid variant")
+								end
+							end
+						end
+					end
+				end
+				buffer.writeu16(outgoing_buff, len_pos_3, len_4)
+			end
+			buffer.writeu16(outgoing_buff, len_pos_1, len_1)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for player in Set do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+	},
+	ReturnClientDialoguesDataFinished = {
+		Fire = function(Player: Player)
+			load_player(Player)
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 4)
+			player_map[Player] = save()
+		end,
+		FireAll = function()
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 4)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireExcept = function(Except: Player)
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 4)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in Players:GetPlayers() do
+				if player ~= Except then
+					load_player(player)
+					alloc(used)
+					buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+					table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+					player_map[player] = save()
+				end
+			end
+		end,
+		FireList = function(List: { Player })
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 4)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for _, player in List do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+		FireSet = function(Set: { [Player]: true })
+			load_empty()
+			alloc(1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 4)
+			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
+			for player in Set do
+				load_player(player)
+				alloc(used)
+				buffer.copy(outgoing_buff, outgoing_apos, buff, 0, used)
+				table.move(inst, 1, #inst, #outgoing_inst + 1, outgoing_inst)
+				player_map[player] = save()
+			end
+		end,
+	},
 	DialogueData = {
 		Fire = function(Player: Player, Value: ({
 			success: (boolean),
 			dialogueId: (string),
-			data: ({
+			data: (({
 				Interactions: ({ [(number)]: ({
 					Content: (string),
 					Title: (string),
@@ -218,30 +1007,11 @@ local returns = {
 						TextColor: ((Color3)?),
 					}) }),
 				}) }),
-				ServerActions: ({ [(number)]: true }),
-				ClientActions: ({ [(number)]: ({ ({
-					before: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-					after: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-				}) }) }),
-			}),
+			})?),
 		}))
 			load_player(Player)
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 5)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, Value.success and 1 or 0)
 			local len_1 = #Value.dialogueId
@@ -249,156 +1019,67 @@ local returns = {
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
 			alloc(len_1)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value.dialogueId, len_1)
-			local len_pos_1 = alloc(2)
-			local len_2 = 0
-			for k_1, v_1 in Value.data.Interactions do
-				len_2 = len_2 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
-				local len_3 = #v_1.Content
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
-				alloc(len_3)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
-				local len_4 = #v_1.Title
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
-				alloc(len_4)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
-				alloc(4)
-				buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
-				local len_5 = #v_1.Responses
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
-				for i_1 = 1, len_5 do
-					local val_1 = v_1.Responses[i_1]
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
-					local len_6 = #val_1.Content
+			if Value.data == nil then
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			else
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+				local len_pos_1 = alloc(2)
+				local len_2 = 0
+				for k_1, v_1 in Value.data.Interactions do
+					len_2 = len_2 + 1
 					alloc(2)
-					buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
-					alloc(len_6)
-					buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
-					if val_1.TextColor == nil then
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
+					local len_3 = #v_1.Content
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
+					alloc(len_3)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
+					local len_4 = #v_1.Title
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
+					alloc(len_4)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
+					alloc(4)
+					buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
+					local len_5 = #v_1.Responses
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_1.Responses[i_1]
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
-					end
-				end
-			end
-			buffer.writeu16(outgoing_buff, len_pos_1, len_2)
-			local len_pos_2 = alloc(2)
-			local len_7 = 0
-			for k_2, __1 in Value.data.ServerActions do
-				len_7 = len_7 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
-			end
-			buffer.writeu16(outgoing_buff, len_pos_2, len_7)
-			local len_pos_3 = alloc(2)
-			local len_8 = 0
-			for k_3, v_2 in Value.data.ClientActions do
-				len_8 = len_8 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
-				local len_9 = #v_2
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
-				for i_2 = 1, len_9 do
-					local val_2 = v_2[i_2]
-					if val_2.before == nil then
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_10 = #val_2.before
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
+						local len_6 = #val_1.Content
 						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
-						for i_3 = 1, len_10 do
-							local val_3 = val_2.before[i_3]
-							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
-							if val_3.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_1, angle_1 = val_3.data.target:ToAxisAngle()
-								axis_1 = axis_1 * angle_1
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
-							else
-								error("Invalid variant")
-							end
-						end
-					end
-					if val_2.after == nil then
+						buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+						alloc(len_6)
+						buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_11 = #val_2.after
-						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
-						for i_4 = 1, len_11 do
-							local val_4 = val_2.after[i_4]
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
+						if val_1.TextColor == nil then
 							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_4.type)
-							if val_4.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_2, angle_2 = val_4.data.target:ToAxisAngle()
-								axis_2 = axis_2 * angle_2
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.speed)
-							else
-								error("Invalid variant")
-							end
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
 						end
 					end
 				end
+				buffer.writeu16(outgoing_buff, len_pos_1, len_2)
 			end
-			buffer.writeu16(outgoing_buff, len_pos_3, len_8)
 			player_map[Player] = save()
 		end,
 		FireAll = function(Value: ({
 			success: (boolean),
 			dialogueId: (string),
-			data: ({
+			data: (({
 				Interactions: ({ [(number)]: ({
 					Content: (string),
 					Title: (string),
@@ -410,30 +1091,11 @@ local returns = {
 						TextColor: ((Color3)?),
 					}) }),
 				}) }),
-				ServerActions: ({ [(number)]: true }),
-				ClientActions: ({ [(number)]: ({ ({
-					before: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-					after: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-				}) }) }),
-			}),
+			})?),
 		}))
 			load_empty()
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 5)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, Value.success and 1 or 0)
 			local len_1 = #Value.dialogueId
@@ -441,150 +1103,61 @@ local returns = {
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
 			alloc(len_1)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value.dialogueId, len_1)
-			local len_pos_1 = alloc(2)
-			local len_2 = 0
-			for k_1, v_1 in Value.data.Interactions do
-				len_2 = len_2 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
-				local len_3 = #v_1.Content
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
-				alloc(len_3)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
-				local len_4 = #v_1.Title
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
-				alloc(len_4)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
-				alloc(4)
-				buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
-				local len_5 = #v_1.Responses
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
-				for i_1 = 1, len_5 do
-					local val_1 = v_1.Responses[i_1]
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
-					local len_6 = #val_1.Content
+			if Value.data == nil then
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			else
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+				local len_pos_1 = alloc(2)
+				local len_2 = 0
+				for k_1, v_1 in Value.data.Interactions do
+					len_2 = len_2 + 1
 					alloc(2)
-					buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
-					alloc(len_6)
-					buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
-					if val_1.TextColor == nil then
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
+					local len_3 = #v_1.Content
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
+					alloc(len_3)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
+					local len_4 = #v_1.Title
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
+					alloc(len_4)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
+					alloc(4)
+					buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
+					local len_5 = #v_1.Responses
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_1.Responses[i_1]
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
-					end
-				end
-			end
-			buffer.writeu16(outgoing_buff, len_pos_1, len_2)
-			local len_pos_2 = alloc(2)
-			local len_7 = 0
-			for k_2, __1 in Value.data.ServerActions do
-				len_7 = len_7 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
-			end
-			buffer.writeu16(outgoing_buff, len_pos_2, len_7)
-			local len_pos_3 = alloc(2)
-			local len_8 = 0
-			for k_3, v_2 in Value.data.ClientActions do
-				len_8 = len_8 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
-				local len_9 = #v_2
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
-				for i_2 = 1, len_9 do
-					local val_2 = v_2[i_2]
-					if val_2.before == nil then
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_10 = #val_2.before
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
+						local len_6 = #val_1.Content
 						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
-						for i_3 = 1, len_10 do
-							local val_3 = val_2.before[i_3]
-							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
-							if val_3.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_1, angle_1 = val_3.data.target:ToAxisAngle()
-								axis_1 = axis_1 * angle_1
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
-							else
-								error("Invalid variant")
-							end
-						end
-					end
-					if val_2.after == nil then
+						buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+						alloc(len_6)
+						buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_11 = #val_2.after
-						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
-						for i_4 = 1, len_11 do
-							local val_4 = val_2.after[i_4]
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
+						if val_1.TextColor == nil then
 							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_4.type)
-							if val_4.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_2, angle_2 = val_4.data.target:ToAxisAngle()
-								axis_2 = axis_2 * angle_2
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.speed)
-							else
-								error("Invalid variant")
-							end
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
 						end
 					end
 				end
+				buffer.writeu16(outgoing_buff, len_pos_1, len_2)
 			end
-			buffer.writeu16(outgoing_buff, len_pos_3, len_8)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
 				load_player(player)
@@ -597,7 +1170,7 @@ local returns = {
 		FireExcept = function(Except: Player, Value: ({
 			success: (boolean),
 			dialogueId: (string),
-			data: ({
+			data: (({
 				Interactions: ({ [(number)]: ({
 					Content: (string),
 					Title: (string),
@@ -609,30 +1182,11 @@ local returns = {
 						TextColor: ((Color3)?),
 					}) }),
 				}) }),
-				ServerActions: ({ [(number)]: true }),
-				ClientActions: ({ [(number)]: ({ ({
-					before: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-					after: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-				}) }) }),
-			}),
+			})?),
 		}))
 			load_empty()
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 5)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, Value.success and 1 or 0)
 			local len_1 = #Value.dialogueId
@@ -640,150 +1194,61 @@ local returns = {
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
 			alloc(len_1)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value.dialogueId, len_1)
-			local len_pos_1 = alloc(2)
-			local len_2 = 0
-			for k_1, v_1 in Value.data.Interactions do
-				len_2 = len_2 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
-				local len_3 = #v_1.Content
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
-				alloc(len_3)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
-				local len_4 = #v_1.Title
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
-				alloc(len_4)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
-				alloc(4)
-				buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
-				local len_5 = #v_1.Responses
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
-				for i_1 = 1, len_5 do
-					local val_1 = v_1.Responses[i_1]
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
-					local len_6 = #val_1.Content
+			if Value.data == nil then
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			else
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+				local len_pos_1 = alloc(2)
+				local len_2 = 0
+				for k_1, v_1 in Value.data.Interactions do
+					len_2 = len_2 + 1
 					alloc(2)
-					buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
-					alloc(len_6)
-					buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
-					if val_1.TextColor == nil then
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
+					local len_3 = #v_1.Content
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
+					alloc(len_3)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
+					local len_4 = #v_1.Title
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
+					alloc(len_4)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
+					alloc(4)
+					buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
+					local len_5 = #v_1.Responses
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_1.Responses[i_1]
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
-					end
-				end
-			end
-			buffer.writeu16(outgoing_buff, len_pos_1, len_2)
-			local len_pos_2 = alloc(2)
-			local len_7 = 0
-			for k_2, __1 in Value.data.ServerActions do
-				len_7 = len_7 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
-			end
-			buffer.writeu16(outgoing_buff, len_pos_2, len_7)
-			local len_pos_3 = alloc(2)
-			local len_8 = 0
-			for k_3, v_2 in Value.data.ClientActions do
-				len_8 = len_8 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
-				local len_9 = #v_2
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
-				for i_2 = 1, len_9 do
-					local val_2 = v_2[i_2]
-					if val_2.before == nil then
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_10 = #val_2.before
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
+						local len_6 = #val_1.Content
 						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
-						for i_3 = 1, len_10 do
-							local val_3 = val_2.before[i_3]
-							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
-							if val_3.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_1, angle_1 = val_3.data.target:ToAxisAngle()
-								axis_1 = axis_1 * angle_1
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
-							else
-								error("Invalid variant")
-							end
-						end
-					end
-					if val_2.after == nil then
+						buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+						alloc(len_6)
+						buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_11 = #val_2.after
-						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
-						for i_4 = 1, len_11 do
-							local val_4 = val_2.after[i_4]
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
+						if val_1.TextColor == nil then
 							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_4.type)
-							if val_4.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_2, angle_2 = val_4.data.target:ToAxisAngle()
-								axis_2 = axis_2 * angle_2
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.speed)
-							else
-								error("Invalid variant")
-							end
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
 						end
 					end
 				end
+				buffer.writeu16(outgoing_buff, len_pos_1, len_2)
 			end
-			buffer.writeu16(outgoing_buff, len_pos_3, len_8)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in Players:GetPlayers() do
 				if player ~= Except then
@@ -798,7 +1263,7 @@ local returns = {
 		FireList = function(List: { Player }, Value: ({
 			success: (boolean),
 			dialogueId: (string),
-			data: ({
+			data: (({
 				Interactions: ({ [(number)]: ({
 					Content: (string),
 					Title: (string),
@@ -810,30 +1275,11 @@ local returns = {
 						TextColor: ((Color3)?),
 					}) }),
 				}) }),
-				ServerActions: ({ [(number)]: true }),
-				ClientActions: ({ [(number)]: ({ ({
-					before: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-					after: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-				}) }) }),
-			}),
+			})?),
 		}))
 			load_empty()
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 5)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, Value.success and 1 or 0)
 			local len_1 = #Value.dialogueId
@@ -841,150 +1287,61 @@ local returns = {
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
 			alloc(len_1)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value.dialogueId, len_1)
-			local len_pos_1 = alloc(2)
-			local len_2 = 0
-			for k_1, v_1 in Value.data.Interactions do
-				len_2 = len_2 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
-				local len_3 = #v_1.Content
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
-				alloc(len_3)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
-				local len_4 = #v_1.Title
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
-				alloc(len_4)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
-				alloc(4)
-				buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
-				local len_5 = #v_1.Responses
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
-				for i_1 = 1, len_5 do
-					local val_1 = v_1.Responses[i_1]
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
-					local len_6 = #val_1.Content
+			if Value.data == nil then
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			else
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+				local len_pos_1 = alloc(2)
+				local len_2 = 0
+				for k_1, v_1 in Value.data.Interactions do
+					len_2 = len_2 + 1
 					alloc(2)
-					buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
-					alloc(len_6)
-					buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
-					if val_1.TextColor == nil then
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
+					local len_3 = #v_1.Content
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
+					alloc(len_3)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
+					local len_4 = #v_1.Title
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
+					alloc(len_4)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
+					alloc(4)
+					buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
+					local len_5 = #v_1.Responses
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_1.Responses[i_1]
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
-					end
-				end
-			end
-			buffer.writeu16(outgoing_buff, len_pos_1, len_2)
-			local len_pos_2 = alloc(2)
-			local len_7 = 0
-			for k_2, __1 in Value.data.ServerActions do
-				len_7 = len_7 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
-			end
-			buffer.writeu16(outgoing_buff, len_pos_2, len_7)
-			local len_pos_3 = alloc(2)
-			local len_8 = 0
-			for k_3, v_2 in Value.data.ClientActions do
-				len_8 = len_8 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
-				local len_9 = #v_2
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
-				for i_2 = 1, len_9 do
-					local val_2 = v_2[i_2]
-					if val_2.before == nil then
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_10 = #val_2.before
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
+						local len_6 = #val_1.Content
 						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
-						for i_3 = 1, len_10 do
-							local val_3 = val_2.before[i_3]
-							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
-							if val_3.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_1, angle_1 = val_3.data.target:ToAxisAngle()
-								axis_1 = axis_1 * angle_1
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
-							else
-								error("Invalid variant")
-							end
-						end
-					end
-					if val_2.after == nil then
+						buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+						alloc(len_6)
+						buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_11 = #val_2.after
-						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
-						for i_4 = 1, len_11 do
-							local val_4 = val_2.after[i_4]
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
+						if val_1.TextColor == nil then
 							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_4.type)
-							if val_4.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_2, angle_2 = val_4.data.target:ToAxisAngle()
-								axis_2 = axis_2 * angle_2
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.speed)
-							else
-								error("Invalid variant")
-							end
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
 						end
 					end
 				end
+				buffer.writeu16(outgoing_buff, len_pos_1, len_2)
 			end
-			buffer.writeu16(outgoing_buff, len_pos_3, len_8)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for _, player in List do
 				load_player(player)
@@ -997,7 +1354,7 @@ local returns = {
 		FireSet = function(Set: { [Player]: true }, Value: ({
 			success: (boolean),
 			dialogueId: (string),
-			data: ({
+			data: (({
 				Interactions: ({ [(number)]: ({
 					Content: (string),
 					Title: (string),
@@ -1009,30 +1366,11 @@ local returns = {
 						TextColor: ((Color3)?),
 					}) }),
 				}) }),
-				ServerActions: ({ [(number)]: true }),
-				ClientActions: ({ [(number)]: ({ ({
-					before: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-					after: (({ ({
-						type: (number),
-						data: ({
-							ActionData: "MoveCamera",
-							target: (CFrame),
-							speed: (number),
-						}),
-					}) })?),
-				}) }) }),
-			}),
+			})?),
 		}))
 			load_empty()
 			alloc(1)
-			buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+			buffer.writeu8(outgoing_buff, outgoing_apos, 5)
 			alloc(1)
 			buffer.writeu8(outgoing_buff, outgoing_apos, Value.success and 1 or 0)
 			local len_1 = #Value.dialogueId
@@ -1040,150 +1378,61 @@ local returns = {
 			buffer.writeu16(outgoing_buff, outgoing_apos, len_1)
 			alloc(len_1)
 			buffer.writestring(outgoing_buff, outgoing_apos, Value.dialogueId, len_1)
-			local len_pos_1 = alloc(2)
-			local len_2 = 0
-			for k_1, v_1 in Value.data.Interactions do
-				len_2 = len_2 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
-				local len_3 = #v_1.Content
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
-				alloc(len_3)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
-				local len_4 = #v_1.Title
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
-				alloc(len_4)
-				buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
-				alloc(4)
-				buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
-				local len_5 = #v_1.Responses
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
-				for i_1 = 1, len_5 do
-					local val_1 = v_1.Responses[i_1]
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
-					local len_6 = #val_1.Content
+			if Value.data == nil then
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+			else
+				alloc(1)
+				buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+				local len_pos_1 = alloc(2)
+				local len_2 = 0
+				for k_1, v_1 in Value.data.Interactions do
+					len_2 = len_2 + 1
 					alloc(2)
-					buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
-					alloc(len_6)
-					buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
-					alloc(1)
-					buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
-					if val_1.TextColor == nil then
+					buffer.writeu16(outgoing_buff, outgoing_apos, k_1)
+					local len_3 = #v_1.Content
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_3)
+					alloc(len_3)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Content, len_3)
+					local len_4 = #v_1.Title
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_4)
+					alloc(len_4)
+					buffer.writestring(outgoing_buff, outgoing_apos, v_1.Title, len_4)
+					alloc(4)
+					buffer.writef32(outgoing_buff, outgoing_apos, v_1.Speed)
+					local len_5 = #v_1.Responses
+					alloc(2)
+					buffer.writeu16(outgoing_buff, outgoing_apos, len_5)
+					for i_1 = 1, len_5 do
+						local val_1 = v_1.Responses[i_1]
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
-					end
-				end
-			end
-			buffer.writeu16(outgoing_buff, len_pos_1, len_2)
-			local len_pos_2 = alloc(2)
-			local len_7 = 0
-			for k_2, __1 in Value.data.ServerActions do
-				len_7 = len_7 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_2)
-			end
-			buffer.writeu16(outgoing_buff, len_pos_2, len_7)
-			local len_pos_3 = alloc(2)
-			local len_8 = 0
-			for k_3, v_2 in Value.data.ClientActions do
-				len_8 = len_8 + 1
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, k_3)
-				local len_9 = #v_2
-				alloc(2)
-				buffer.writeu16(outgoing_buff, outgoing_apos, len_9)
-				for i_2 = 1, len_9 do
-					local val_2 = v_2[i_2]
-					if val_2.before == nil then
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_10 = #val_2.before
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Next)
+						local len_6 = #val_1.Content
 						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_10)
-						for i_3 = 1, len_10 do
-							local val_3 = val_2.before[i_3]
-							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_3.type)
-							if val_3.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_1, angle_1 = val_3.data.target:ToAxisAngle()
-								axis_1 = axis_1 * angle_1
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_1.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_3.data.speed)
-							else
-								error("Invalid variant")
-							end
-						end
-					end
-					if val_2.after == nil then
+						buffer.writeu16(outgoing_buff, outgoing_apos, len_6)
+						alloc(len_6)
+						buffer.writestring(outgoing_buff, outgoing_apos, val_1.Content, len_6)
 						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-					else
-						alloc(1)
-						buffer.writeu8(outgoing_buff, outgoing_apos, 1)
-						local len_11 = #val_2.after
-						alloc(2)
-						buffer.writeu16(outgoing_buff, outgoing_apos, len_11)
-						for i_4 = 1, len_11 do
-							local val_4 = val_2.after[i_4]
+						buffer.writeu8(outgoing_buff, outgoing_apos, val_1.Speed)
+						if val_1.TextColor == nil then
 							alloc(1)
-							buffer.writeu8(outgoing_buff, outgoing_apos, val_4.type)
-							if val_4.data.ActionData == "MoveCamera" then
-								alloc(1)
-								buffer.writeu8(outgoing_buff, outgoing_apos, 0)
-								local axis_2, angle_2 = val_4.data.target:ToAxisAngle()
-								axis_2 = axis_2 * angle_2
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.target.Position.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.X)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Y)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, axis_2.Z)
-								alloc(4)
-								buffer.writef32(outgoing_buff, outgoing_apos, val_4.data.speed)
-							else
-								error("Invalid variant")
-							end
+							buffer.writeu8(outgoing_buff, outgoing_apos, 0)
+						else
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, 1)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.R * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.G * 255)
+							alloc(1)
+							buffer.writeu8(outgoing_buff, outgoing_apos, val_1.TextColor.B * 255)
 						end
 					end
 				end
+				buffer.writeu16(outgoing_buff, len_pos_1, len_2)
 			end
-			buffer.writeu16(outgoing_buff, len_pos_3, len_8)
 			local buff, used, inst = outgoing_buff, outgoing_used, outgoing_inst
 			for player in Set do
 				load_player(player)
@@ -1194,14 +1443,30 @@ local returns = {
 			end
 		end,
 	},
+	TerminateDialogue = {
+		SetCallback = function(Callback: (Player) -> ()): () -> ()
+			events[1] = Callback
+			return function()
+				events[1] = nil
+			end
+		end,
+	},
+	GetClientDialoguesData = {
+		SetCallback = function(Callback: (Player) -> ()): () -> ()
+			events[2] = Callback
+			return function()
+				events[2] = nil
+			end
+		end,
+	},
 	InitiateDialogue = {
 		SetCallback = function(Callback: (Player, ({
 			id: (string),
 			nd: (boolean),
 		})) -> ()): () -> ()
-			events[2] = Callback
+			events[6] = Callback
 			return function()
-				events[2] = nil
+				events[6] = nil
 			end
 		end,
 	},

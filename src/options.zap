@@ -2,6 +2,54 @@ opt server_output = "./events/server.luau"
 opt client_output = "./events/client.luau"
 opt typescript = true
 
+event TerminateDialogue = {
+	from: Client,
+	type: Reliable,
+	call: SingleAsync,
+}
+
+event GetClientDialoguesData = {
+	from: Client,
+	type: Reliable,
+	call: SingleAsync,
+}
+
+event ReturnClientDialoguesData = {
+	from: Server,
+	type: Reliable,
+	call: SingleAsync,
+	data: map { [string]: struct {
+		ServerActions: set { u16 },
+		ClientActions: map { [u16]: struct {
+			before: struct {
+				type: u8,
+				data: enum "ActionData" {
+						MoveCamera {
+							target: CFrame,
+							speed: f32
+						}
+					}
+				}[]?,
+
+				after: struct {
+					type: u8,
+					data: enum "ActionData" {
+						MoveCamera {
+							target: CFrame,
+							speed: f32
+						}
+					}
+				}[]?,
+			}[] },
+	} }
+}
+
+event ReturnClientDialoguesDataFinished = {
+	from: Server,
+	type: Reliable,
+	call: SingleAsync
+}
+
 event DialogueData = {
 	from: Server,
 	type: Reliable,
@@ -21,29 +69,29 @@ event DialogueData = {
 					TextColor: Color3?
 				}[]
 			} },
-			ServerActions: set { u16 },
-			ClientActions: map { [u16]: struct {
-				before: struct {
-					type: u8,
-					data: enum "ActionData" {
-						MoveCamera {
-							target: CFrame,
-							speed: f32
-						}
-					}
-				}[]?,
+			-- ServerActions: set { u16 },
+			-- ClientActions: map { [u16]: struct {
+			-- 	before: struct {
+			-- 		type: u8,
+			-- 		data: enum "ActionData" {
+			-- 			MoveCamera {
+			-- 				target: CFrame,
+			-- 				speed: f32
+			-- 			}
+			-- 		}
+			-- 	}[]?,
 
-				after: struct {
-					type: u8,
-					data: enum "ActionData" {
-						MoveCamera {
-							target: CFrame,
-							speed: f32
-						}
-					}
-				}[]?,
-			}[] },
-		}
+			-- 	after: struct {
+			-- 		type: u8,
+			-- 		data: enum "ActionData" {
+			-- 			MoveCamera {
+			-- 				target: CFrame,
+			-- 				speed: f32
+			-- 			}
+			-- 		}
+			-- 	}[]?,
+			-- }[] },
+		}?
 	}
 }
 
